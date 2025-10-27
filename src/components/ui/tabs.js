@@ -11,11 +11,16 @@ const Tabs = ({ className, children, defaultValue, onValueChange, ...props }) =>
     }
   };
 
+  const contextValue = {
+    value,
+    onValueChange: handleValueChange
+  };
+
   return (
-    <div className={cn("w-full", className)} {...props}>
+    <div className={cn("w-full", className)} data-tabs-value={value} {...props}>
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
-          return React.cloneElement(child, { value, onValueChange: handleValueChange });
+          return React.cloneElement(child, contextValue);
         }
         return child;
       })}
@@ -30,6 +35,7 @@ const TabsList = ({ className, children, value, onValueChange, ...props }) => {
         "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
         className
       )}
+      role="tablist"
       {...props}
     >
       {React.Children.map(children, (child) => {
@@ -53,6 +59,9 @@ const TabsTrigger = ({ className, children, value: currentValue, onValueChange, 
         className
       )}
       onClick={() => onValueChange && onValueChange(triggerValue)}
+      type="button"
+      role="tab"
+      aria-selected={isActive}
       {...props}
     >
       {children}
@@ -60,8 +69,11 @@ const TabsTrigger = ({ className, children, value: currentValue, onValueChange, 
   );
 };
 
-const TabsContent = ({ className, children, value: currentValue, contentValue, ...props }) => {
+const TabsContent = ({ className, children, value: currentValue, contentValue, onValueChange, ...props }) => {
   if (currentValue !== contentValue) return null;
+
+  // Filter out internal props before spreading to DOM
+  const { value, onValueChange: _, ...domProps } = props;
 
   return (
     <div
@@ -69,7 +81,8 @@ const TabsContent = ({ className, children, value: currentValue, contentValue, .
         "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         className
       )}
-      {...props}
+      role="tabpanel"
+      {...domProps}
     >
       {children}
     </div>

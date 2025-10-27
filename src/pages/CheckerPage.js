@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
@@ -24,10 +24,12 @@ const SAMPLE_TEXTS = [
 
 export default function CheckerPage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [text, setText] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleTextChange = (e) => {
     const newText = e.target.value;
@@ -40,9 +42,14 @@ export default function CheckerPage() {
   };
 
   const handleFileChange = async (e) => {
+    console.log("handleFileChange called", e.target.files);
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log("No file selected");
+      return;
+    }
 
+    console.log("File selected:", file.name, file.type);
     setSelectedFile(file);
 
     const validTypes = [
@@ -53,7 +60,9 @@ export default function CheckerPage() {
     ];
 
     if (!validTypes.includes(file.type)) {
+      console.log("Invalid file type:", file.type);
       alert("Please upload a valid file (TXT, PDF, DOC, or DOCX)");
+      setSelectedFile(null);
       return;
     }
 
@@ -66,6 +75,74 @@ export default function CheckerPage() {
           .split(/\s+/)
           .filter((word) => word.length > 0);
         setWordCount(words.length);
+        console.log("Text file processed, word count:", words.length);
+      } else {
+        setText(`File uploaded: ${file.name}\n\nNote: PDF and DOC file text extraction would be implemented with proper libraries.`);
+        setWordCount(0);
+        console.log("Non-text file uploaded:", file.name);
+      }
+    } catch (error) {
+      console.error("Error reading file:", error);
+      alert("Error reading file. Please try again.");
+      setSelectedFile(null);
+    }
+  };
+
+  const handleFileButtonClick = (e) => {
+    console.log("Button clicked, fileInputRef:", fileInputRef.current);
+    if (e) {
+      e.stopPropagation(); // Prevent double trigger if inside clickable div
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Directly process the file instead of trying to set input.files
+    setSelectedFile(file);
+
+    const validTypes = [
+      "text/plain",
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+    ];
+
+    if (!validTypes.includes(file.type)) {
+      alert("Please upload a valid file (TXT, PDF, DOC, or DOCX)");
+      setSelectedFile(null);
+      return;
+    }
+
+    try {
+      if (file.type === "text/plain") {
+        const textContent = await file.text();
+        setText(textContent);
+        const words = textContent
+          .trim()
+          .split(/\s+/)
+          .filter((word) => word.length > 0);
+        setWordCount(words.length);
       } else {
         setText(`File uploaded: ${file.name}\n\nNote: PDF and DOC file text extraction would be implemented with proper libraries.`);
         setWordCount(0);
@@ -73,6 +150,7 @@ export default function CheckerPage() {
     } catch (error) {
       console.error("Error reading file:", error);
       alert("Error reading file. Please try again.");
+      setSelectedFile(null);
     }
   };
 
@@ -190,23 +268,42 @@ export default function CheckerPage() {
             </TabsContent>
 
             <TabsContent contentValue="file">
-              <div className="border-2 border-dashed rounded-lg p-12 text-center mb-4">
+              <div 
+                className={`border-2 border-dashed rounded-lg p-12 text-center mb-4 transition-colors ${
+                  isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="mb-4 text-muted-foreground">
-                  Drag and drop your file here, or click to browse
+                  {isDragging ? 'Drop your file here' : 'Drag and drop your file here, or click to browse'}
                 </p>
                 <input
+                  ref={fileInputRef}
                   type="file"
                   onChange={handleFileChange}
                   accept=".txt,.pdf,.doc,.docx"
-                  className="hidden"
-                  id="file-upload"
+                  id="file-upload-input"
+                  style={{ display: 'none' }}
                 />
-                <label htmlFor="file-upload">
-                  <Button variant="outline" as="span">
-                    Choose File
-                  </Button>
-                </label>
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log("Button clicked!");
+                    const input = document.getElementById('file-upload-input');
+                    console.log("Input element:", input);
+                    if (input) {
+                      input.click();
+                      console.log("Input clicked!");
+                    }
+                  }}
+                >
+                  Choose File
+                </Button>
                 {selectedFile && (
                   <p className="mt-4 text-sm text-muted-foreground">
                     Selected: {selectedFile.name}
