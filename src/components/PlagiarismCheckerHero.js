@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
@@ -24,10 +24,12 @@ const SAMPLE_TEXTS = [
 
 export default function PlagiarismCheckerHero() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [text, setText] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleTextChange = (e) => {
     const newText = e.target.value;
@@ -54,6 +56,7 @@ export default function PlagiarismCheckerHero() {
 
     if (!validTypes.includes(file.type)) {
       alert("Please upload a valid file (TXT, PDF, DOC, or DOCX)");
+      setSelectedFile(null);
       return;
     }
 
@@ -73,6 +76,66 @@ export default function PlagiarismCheckerHero() {
     } catch (error) {
       console.error("Error reading file:", error);
       alert("Error reading file. Please try again.");
+      setSelectedFile(null);
+    }
+  };
+
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+
+    const validTypes = [
+      "text/plain",
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+    ];
+
+    if (!validTypes.includes(file.type)) {
+      alert("Please upload a valid file (TXT, PDF, DOC, or DOCX)");
+      setSelectedFile(null);
+      return;
+    }
+
+    try {
+      if (file.type === "text/plain") {
+        const textContent = await file.text();
+        setText(textContent);
+        const words = textContent
+          .trim()
+          .split(/\s+/)
+          .filter((word) => word.length > 0);
+        setWordCount(words.length);
+      } else {
+        setText(`File uploaded: ${file.name}\n\nNote: PDF and DOC file text extraction would be implemented with proper libraries.`);
+        setWordCount(0);
+      }
+    } catch (error) {
+      console.error("Error reading file:", error);
+      alert("Error reading file. Please try again.");
+      setSelectedFile(null);
     }
   };
 
@@ -144,23 +207,32 @@ export default function PlagiarismCheckerHero() {
           </TabsContent>
 
           <TabsContent contentValue="file">
-            <div className="border-2 border-dashed rounded-lg p-12 text-center mb-4">
+            <div 
+              className={`border-2 border-dashed rounded-lg p-12 text-center mb-4 transition-colors ${
+                isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="mb-4 text-muted-foreground">
-                Drag and drop your file here, or click to browse
+                {isDragging ? 'Drop your file here' : 'Drag and drop your file here, or click to browse'}
               </p>
               <input
+                ref={fileInputRef}
                 type="file"
                 onChange={handleFileChange}
                 accept=".txt,.pdf,.doc,.docx"
-                className="hidden"
-                id="file-upload"
+                style={{ display: 'none' }}
               />
-              <label htmlFor="file-upload">
-                <Button variant="outline" as="span">
-                  Choose File
-                </Button>
-              </label>
+              <Button 
+                variant="outline" 
+                type="button"
+                onClick={handleFileButtonClick}
+              >
+                Choose File
+              </Button>
               {selectedFile && (
                 <p className="mt-4 text-sm text-muted-foreground">
                   Selected: {selectedFile.name}
