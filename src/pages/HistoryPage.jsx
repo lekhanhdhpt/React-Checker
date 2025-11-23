@@ -4,7 +4,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { FileText, Clock } from "lucide-react";
 
-export default function HistoryPage() {
+const HistoryPage = () => {
   const mockHistory = [
     {
       id: 1,
@@ -119,4 +119,6 @@ export default function HistoryPage() {
       </div>
     </div>
   );
-}
+};
+
+export default HistoryPage;

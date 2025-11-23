@@ -22,7 +22,7 @@ const SAMPLE_TEXTS = [
   },
 ];
 
-export default function CheckerPage() {
+const CheckerPage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [text, setText] = useState("");
@@ -91,7 +91,7 @@ export default function CheckerPage() {
   const handleFileButtonClick = (e) => {
     console.log("Button clicked, fileInputRef:", fileInputRef.current);
     if (e) {
-      e.stopPropagation(); // Prevent double trigger if inside clickable div
+      e.stopPropagation();
     }
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -118,7 +118,6 @@ export default function CheckerPage() {
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
 
-    // Directly process the file instead of trying to set input.files
     setSelectedFile(file);
 
     const validTypes = [
@@ -375,4 +374,6 @@ export default function CheckerPage() {
       </div>
     </div>
   );
-}
+};
+
+export default CheckerPage;

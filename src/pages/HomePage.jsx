@@ -5,7 +5,7 @@ import { Card } from "../components/ui/card";
 import { CheckCircle, Shield, Clock, BarChart3 } from "lucide-react";
 import PlagiarismCheckerHero from "../components/PlagiarismCheckerHero";
 
-export default function HomePage() {
+const HomePage = () => {
   return (
     <div className="page-wrapper">
       {/* Navigation */}
@@ -152,4 +152,6 @@ export default function HomePage() {
       </footer>
     </div>
   );
-}
+};
+
+export default HomePage;

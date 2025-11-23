@@ -4,7 +4,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
 
-export default function SignupPage() {
+const SignupPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -142,4 +142,6 @@ export default function SignupPage() {
       </div>
     </div>
   );
-}
+};
+
+export default SignupPage;

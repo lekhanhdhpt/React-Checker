@@ -5,7 +5,7 @@ import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { ArrowLeft, Download, Share2, AlertCircle } from "lucide-react";
 
-export default function ResultsPage() {
+const ResultsPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const result = location.state?.result;
@@ -191,4 +191,6 @@ export default function ResultsPage() {
       </div>
     </div>
   );
-}
+};
+
+export default ResultsPage;

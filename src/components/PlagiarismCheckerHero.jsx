@@ -22,7 +22,7 @@ const SAMPLE_TEXTS = [
   },
 ];
 
-export default function PlagiarismCheckerHero() {
+const PlagiarismCheckerHero = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [text, setText] = useState("");
@@ -281,4 +281,6 @@ export default function PlagiarismCheckerHero() {
       </Card>
     </div>
   );
-}
+};
+
+export default PlagiarismCheckerHero;
