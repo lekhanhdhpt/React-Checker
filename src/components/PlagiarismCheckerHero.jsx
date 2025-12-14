@@ -157,11 +157,24 @@ const PlagiarismCheckerHero = () => {
     setIsChecking(true);
 
     try {
-      const result = await checkPlagiarism(text);
+      // Call Flask API instead of local function
+      const response = await fetch('http://localhost:5000/api/check-plagiarism', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
       navigate("/results", { state: { result } });
     } catch (error) {
       console.error("Error checking plagiarism:", error);
-      alert("An error occurred while checking for plagiarism. Please try again.");
+      alert("An error occurred while checking for plagiarism. Please make sure the API server is running (python api/plagiarism_api.py).");
     } finally {
       setIsChecking(false);
     }
