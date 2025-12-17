@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test File Upload</title>
+</head>
+<body>
+    <h1>Test File Upload</h1>
+    
+    <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx" />
+    
+    <br><br>
+    
+    <label for="fileInput2" style="cursor: pointer; padding: 10px 20px; background: #007bff; color: white; border-radius: 5px;">
+        Choose File (Label Method)
+    </label>
+    <input type="file" id="fileInput2" accept=".txt,.pdf,.doc,.docx" style="display: none;" />
+    
+    <br><br>
+    
+    <button onclick="document.getElementById('fileInput3').click()">
+        Choose File (Button Method)
+    </button>
+    <input type="file" id="fileInput3" accept=".txt,.pdf,.doc,.docx" style="display: none;" />
+    
+    <br><br>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            document.getElementById('result').innerHTML = 'Method 1 - File: ' + (e.target.files[0]?.name || 'None');
+        });
+        
+        document.getElementById('fileInput2').addEventListener('change', function(e) {
+            document.getElementById('result').innerHTML = 'Method 2 (Label) - File: ' + (e.target.files[0]?.name || 'None');
+        });
+        
+        document.getElementById('fileInput3').addEventListener('change', function(e) {
+            document.getElementById('result').innerHTML = 'Method 3 (Button) - File: ' + (e.target.files[0]?.name || 'None');
+        });
+    </script>
+</body>
+</html>
