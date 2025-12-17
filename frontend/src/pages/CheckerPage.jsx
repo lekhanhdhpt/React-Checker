@@ -215,6 +215,69 @@ const CheckerPage = () => {
     }
   };
 
+  const handleCheckAI = async () => {
+    if (!text.trim()) {
+      alert("Please enter some text to check for AI content");
+      return;
+    }
+
+    setIsChecking(true);
+
+    try {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
+      
+      const response = await fetch(`${API_BASE}/api/ai-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // Transform result to match ResultsPage expectations
+      const aiResult = {
+        type: 'ai_check',
+        combined_prob_ai: result.data?.combined_prob_ai || 0,
+        combined_label: result.data?.combined_label || 'Nguoi viet',
+        sentence_analysis: result.data?.sentence_analysis || [],
+        high_risk_sentences: result.data?.high_risk_sentences || [],
+        stats: result.data?.stats || {},
+        analyzedText: text,
+        wordCount: text.trim().split(/\s+/).length,
+      };
+
+      // Attempt to save history + report if authenticated
+      try {
+        if (token) {
+          const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
+          await fetch(`${API_BASE_URL}/api/history`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ text, result: aiResult, inputType: 'text' }),
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to save history/report:', e);
+      }
+
+      navigate("/results", { state: { result: aiResult } });
+    } catch (error) {
+      console.error("Error checking AI content:", error);
+      alert("An error occurred while checking for AI content. Please make sure the Node.js server is running.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Navigation */}
@@ -266,13 +329,23 @@ const CheckerPage = () => {
                 <span className="text-sm text-muted-foreground">
                   Word count: {wordCount}
                 </span>
-                <Button
-                  onClick={handleCheck}
-                  disabled={isChecking || !text.trim()}
-                  size="lg"
-                >
-                  {isChecking ? "Checking..." : "Check for Plagiarism"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleCheckAI}
+                    disabled={isChecking || !text.trim()}
+                    size="lg"
+                    variant="outline"
+                  >
+                    {isChecking ? "Checking..." : "Check for AI"}
+                  </Button>
+                  <Button
+                    onClick={handleCheck}
+                    disabled={isChecking || !text.trim()}
+                    size="lg"
+                  >
+                    {isChecking ? "Checking..." : "Check for Plagiarism"}
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
@@ -330,13 +403,23 @@ const CheckerPage = () => {
                     <span className="text-sm text-muted-foreground">
                       Word count: {wordCount}
                     </span>
-                    <Button
-                      onClick={handleCheck}
-                      disabled={isChecking || !text.trim()}
-                      size="lg"
-                    >
-                      {isChecking ? "Checking..." : "Check for Plagiarism"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleCheckAI}
+                        disabled={isChecking || !text.trim()}
+                        size="lg"
+                        variant="outline"
+                      >
+                        {isChecking ? "Checking..." : "Check for AI"}
+                      </Button>
+                      <Button
+                        onClick={handleCheck}
+                        disabled={isChecking || !text.trim()}
+                        size="lg"
+                      >
+                        {isChecking ? "Checking..." : "Check for Plagiarism"}
+                      </Button>
+                    </div>
                   </div>
                 </>
               )}
@@ -368,13 +451,23 @@ const CheckerPage = () => {
                     <span className="text-sm text-muted-foreground">
                       Word count: {wordCount}
                     </span>
-                    <Button
-                      onClick={handleCheck}
-                      disabled={isChecking || !text.trim()}
-                      size="lg"
-                    >
-                      {isChecking ? "Checking..." : "Check for Plagiarism"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleCheckAI}
+                        disabled={isChecking || !text.trim()}
+                        size="lg"
+                        variant="outline"
+                      >
+                        {isChecking ? "Checking..." : "Check for AI"}
+                      </Button>
+                      <Button
+                        onClick={handleCheck}
+                        disabled={isChecking || !text.trim()}
+                        size="lg"
+                      >
+                        {isChecking ? "Checking..." : "Check for Plagiarism"}
+                      </Button>
+                    </div>
                   </div>
                 </>
               )}

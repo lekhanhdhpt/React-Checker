@@ -75,7 +75,16 @@ doc_metadata_map = {doc['id']: doc for doc in corpus_data}
 print("="*60)
 print("✅ ALL MODELS LOADED SUCCESSFULLY!")
 print("="*60)
-
+# ===============================================
+# INITIALIZE AI DETECTION TOKENIZER (GLOBAL)
+# ===============================================
+try:
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained('vinai/phobert-base', use_fast=True)
+    print("AI tokenizer initialized")
+except Exception as e:
+    print(f"Warning: Could not initialize AI tokenizer: {e}")
+    tokenizer = None
 # ===============================================
 # UTILITY CLASSES (From Notebook)
 # ===============================================
@@ -591,6 +600,201 @@ def analyze_sentences_endpoint():
     
     except Exception as e:
         print(f"❌ Error: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'message': 'Internal server error'
+        }), 500
+
+
+# ===============================================
+# AI DETECTION FUNCTIONS
+# ===============================================
+
+def get_ai_label(confidence):
+    """Convert confidence score to label"""
+    if confidence < 0.4:
+        return "Nguoi viet"
+    elif confidence < 0.6:
+        return "Nghi van"
+    elif confidence < 0.8:
+        return "Co dau hieu AI"
+    else:
+        return "AI viet"
+
+
+def analyze_ai_with_windows(text, clf_model, ai_tokenizer, max_windows=None, stride_tokens=128):
+    """
+    Analyze text with sliding windows to get sentence-level scores
+    Returns list of sentences with their AI scores
+    """
+    try:
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?...])\s+", text) if s.strip()]
+        ai_analysis = []
+        window_scores = []
+        
+        for idx, sentence in enumerate(sentences):
+            word_count = len(sentence.split())
+            
+            result = {
+                'sentence': sentence,
+                'sentence_index': idx,
+                'word_count': word_count,
+                'is_suspicious': False,
+                'confidence': 0.0,
+                'label': 'Nguoi viet'
+            }
+            
+            if word_count < 5:
+                ai_analysis.append(result)
+                continue
+            
+            try:
+                ids = ai_tokenizer(sentence, add_special_tokens=False, truncation=False).get('input_ids', [])
+                if not ids:
+                    ai_analysis.append(result)
+                    continue
+                    
+                n_special = 2
+                win_len = max(8, int(256) - n_special)
+                
+                sent_probs = []
+                if len(ids) <= win_len:
+                    ids_with_special = ai_tokenizer.build_inputs_with_special_tokens(ids)
+                    prob_ai = _predict_prob_from_ids_simple(ids_with_special, clf_model)
+                    sent_probs.append(prob_ai)
+                else:
+                    stride = min(max(1, stride_tokens), win_len)
+                    for start in range(0, len(ids), stride):
+                        chunk = ids[start:start + win_len]
+                        if len(chunk) < 8:
+                            break
+                        ids_with_special = ai_tokenizer.build_inputs_with_special_tokens(chunk)
+                        sent_probs.append(_predict_prob_from_ids_simple(ids_with_special, clf_model))
+                        if max_windows and len(sent_probs) >= max_windows:
+                            break
+                        if start + win_len >= len(ids):
+                            break
+                
+                if sent_probs:
+                    avg_prob = float(np.mean(sent_probs))
+                    result['confidence'] = round(avg_prob, 4)
+                    result['is_suspicious'] = avg_prob >= 0.6
+                    result['label'] = get_ai_label(avg_prob)
+                    window_scores.extend(sent_probs)
+                    
+            except Exception as e:
+                print(f"Warning processing sentence {idx}: {e}")
+            
+            ai_analysis.append(result)
+        
+        return ai_analysis, window_scores
+        
+    except Exception as e:
+        print(f"Error in analyze_ai_with_windows: {e}")
+        return [], []
+
+
+def _predict_prob_from_ids_simple(input_ids_1d, model):
+    """Simple prediction from token IDs"""
+    try:
+        import torch
+        ids = torch.tensor([input_ids_1d], device='cuda' if torch.cuda.is_available() else 'cpu')
+        attn = torch.ones_like(ids)
+        with torch.inference_mode():
+            logits = model(input_ids=ids, attention_mask=attn).logits
+            prob_ai = torch.softmax(logits, dim=-1)[0, 1].item()
+        return float(prob_ai)
+    except Exception as e:
+        print(f"Error in prediction: {e}")
+        return 0.0
+
+
+@app.route('/api/check-ai', methods=['POST'])
+def check_ai():
+    """
+    AI detection endpoint
+    Request body: { "text": "text to check" }
+    Response: {
+        "combined_prob_ai": 0.75,
+        "combined_label": "Co dau hieu AI",
+        "sentence_analysis": [...],
+        "high_risk_sentences": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({
+                'error': 'Missing "text" field in request body'
+            }), 400
+        
+        query_text = data['text'].strip()
+        if not query_text:
+            return jsonify({
+                'error': 'Text cannot be empty'
+            }), 400
+        
+        if not os.path.exists(str(BASE_DIR / 'model' / 'detector_phobert')):
+            return jsonify({
+                'error': 'AI model not found. Please ensure detector_phobert model is available.',
+                'model_path': str(BASE_DIR / 'model' / 'detector_phobert')
+            }), 500
+        
+        try:
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+            
+            model_path = str(BASE_DIR / 'model' / 'detector_phobert')
+            
+            if not hasattr(check_ai, 'ai_model') or check_ai.ai_model is None:
+                check_ai.ai_model = AutoModelForSequenceClassification.from_pretrained(model_path)
+                check_ai.ai_model.eval()
+                check_ai.ai_tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+                print("Loaded AI detection model")
+            
+            ai_model = check_ai.ai_model
+            ai_tokenizer = check_ai.ai_tokenizer
+            
+        except Exception as e:
+            print(f"Error loading AI model: {e}")
+            return jsonify({
+                'error': f'Failed to load AI detection model: {str(e)}'
+            }), 500
+        
+        try:
+            sentence_analysis, window_scores = analyze_ai_with_windows(query_text, ai_model, ai_tokenizer)
+            
+            overall_score = float(np.mean(window_scores)) if window_scores else 0.0
+            
+            high_risk_sentences = [s for s in sentence_analysis if s['is_suspicious'] and s['confidence'] >= 0.6]
+            
+            response = {
+                'combined_prob_ai': round(overall_score, 4),
+                'combined_label': get_ai_label(overall_score),
+                'sentence_count': len(sentence_analysis),
+                'suspicious_count': len(high_risk_sentences),
+                'sentence_analysis': sentence_analysis,
+                'high_risk_sentences': high_risk_sentences,
+                'stats': {
+                    'total_sentences': len(sentence_analysis),
+                    'avg_confidence': round(float(np.mean([s['confidence'] for s in sentence_analysis])), 4) if sentence_analysis else 0.0,
+                    'max_confidence': round(max([s['confidence'] for s in sentence_analysis]), 4) if sentence_analysis else 0.0
+                }
+            }
+            
+            return jsonify(response)
+            
+        except Exception as e:
+            print(f"Error during AI analysis: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'error': f'Analysis failed: {str(e)}'
+            }), 500
+    
+    except Exception as e:
+        print(f"Error in check_ai endpoint: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'error': str(e),
             'message': 'Internal server error'

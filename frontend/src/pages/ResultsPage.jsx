@@ -30,6 +30,12 @@ const ResultsPage = () => {
     );
   }
 
+  const isAICheck = result.type === 'ai_check';
+  
+  if (isAICheck) {
+    return <AICheckResultsPage result={result} />;
+  }
+
   const { overallSimilarity, originalPercentage, plagiarizedPercentage, matches, analyzedText, isPlagiarism, confidence } = result;
 
   // Get data from new API response format
@@ -358,6 +364,161 @@ const ResultsPage = () => {
                 </p>
               </div>
             )}
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AICheckResultsPage = ({ result }) => {
+  const {
+    combined_prob_ai = 0,
+    combined_label = "Nguoi viet",
+    sentence_analysis = [],
+    high_risk_sentences = [],
+    analyzedText = "",
+    wordCount = 0,
+  } = result;
+
+  const getAILabelColor = (label) => {
+    switch (label) {
+      case "Nguoi viet":
+        return { color: "text-green-600", bgColor: "bg-green-50", borderColor: "border-green-200" };
+      case "Nghi van":
+        return { color: "text-yellow-600", bgColor: "bg-yellow-50", borderColor: "border-yellow-200" };
+      case "Co dau hieu AI":
+        return { color: "text-orange-600", bgColor: "bg-orange-50", borderColor: "border-orange-200" };
+      case "AI viet":
+        return { color: "text-red-600", bgColor: "bg-red-50", borderColor: "border-red-200" };
+      default:
+        return { color: "text-gray-600", bgColor: "bg-gray-50", borderColor: "border-gray-200" };
+    }
+  };
+
+  const labelStyle = getAILabelColor(combined_label);
+
+  const getHighlightedText = () => {
+    if (!analyzedText || high_risk_sentences.length === 0) {
+      return analyzedText;
+    }
+
+    let highlightedText = analyzedText;
+    const riskyTexts = high_risk_sentences.map(s => s.sentence);
+
+    riskyTexts.forEach((sentence, idx) => {
+      const regex = new RegExp(`(${sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g');
+      highlightedText = highlightedText.replace(
+        regex,
+        `<mark class="bg-red-200 text-red-900 px-1 rounded">${sentence}</mark>`
+      );
+    });
+
+    return highlightedText;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <Header />
+
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Link to="/checker">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Check Another Document
+            </Button>
+          </Link>
+        </div>
+
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">AI Detection Report</h1>
+          <p className="text-muted-foreground">
+            Analysis complete - Here are your AI detection results
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <Card className={`p-6 ${labelStyle.bgColor} border-2 ${labelStyle.borderColor}`}>
+            <div className="text-center">
+              <div className={`text-3xl font-bold ${labelStyle.color} mb-2`}>
+                {combined_label}
+              </div>
+              <div className="text-sm text-muted-foreground">Nhan dinh</div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Diem confident</h3>
+              <span className={`text-3xl font-bold ${combined_prob_ai >= 0.6 ? 'text-red-600' : 'text-green-600'}`}>
+                {(combined_prob_ai * 100).toFixed(1)}%
+              </span>
+            </div>
+            <Progress value={combined_prob_ai * 100} className="h-3 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {combined_prob_ai >= 0.8
+                ? "Rat cao - Co the la AI viet"
+                : combined_prob_ai >= 0.6
+                ? "Cao - Co dau hieu AI"
+                : combined_prob_ai >= 0.4
+                ? "Trung binh - Nghi van"
+                : "Thap - Nguoi viet"}
+            </p>
+          </Card>
+        </div>
+
+        {wordCount > 0 && (
+          <Card className="p-4 mb-8 bg-blue-50 border border-blue-200">
+            <p className="text-sm text-blue-900">
+              <strong>Word count:</strong> {wordCount} tu
+              {high_risk_sentences.length > 0 && (
+                <>
+                  | <strong>High-risk sentences:</strong> {high_risk_sentences.length}
+                </>
+              )}
+            </p>
+          </Card>
+        )}
+
+        {analyzedText && (
+          <Card className="p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4">Analyzed Text</h2>
+            <div className="prose max-w-none text-sm leading-relaxed whitespace-pre-wrap">
+              {high_risk_sentences.length > 0 ? (
+                <div dangerouslySetInnerHTML={{ __html: getHighlightedText() }} />
+              ) : (
+                <p>{analyzedText}</p>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {sentence_analysis.length > 0 && (
+          <Card className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Sentence Analysis</h2>
+            <div className="space-y-3">
+              {sentence_analysis.map((sent, idx) => (
+                <div
+                  key={idx}
+                  className={`p-3 rounded border-l-4 ${
+                    sent.is_suspicious
+                      ? 'bg-red-50 border-l-red-500'
+                      : 'bg-green-50 border-l-green-500'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-sm font-medium">{sent.sentence}</p>
+                    <span className="text-xs font-semibold bg-gray-200 px-2 py-1 rounded">
+                      {(sent.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Label: <span className="font-semibold">{sent.label}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
       </div>

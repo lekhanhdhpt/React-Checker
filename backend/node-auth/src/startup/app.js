@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import './db.js';
 import authRoutes from '../routes/authRoutes.js';
 import historyRoutes from '../routes/historyRoutes.js';
+import aiCheckRoutes from '../routes/aiCheckRoutes.js';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/history', historyRoutes);
+app.use('/api/ai-check', aiCheckRoutes);
 
 // Fallback 404
 app.use((req, res) => {
